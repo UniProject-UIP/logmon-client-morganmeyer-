@@ -1,0 +1,171 @@
+services:
+
+  mariadb:
+    image: mariadb:11
+    container_name: logmon_mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: root123
+      MARIADB_DATABASE: logdb
+      MARIADB_USER: loguser
+      MARIADB_PASSWORD: logpass
+    ports:
+      - "3306:3306" #Revisar Puertos
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - logmon-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
+  postgres:
+    image: postgres:16
+    container_name: logmon_postgres
+    environment:
+      POSTGRES_DB: logdb
+      POSTGRES_USER: loguser
+      POSTGRES_PASSWORD: logpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - logmon-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loguser -d logdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
+  sqlserver:
+    image: mcr.microsoft.com/azure-sql-edge
+    container_name: logmon_sqlserver
+    environment:
+      ACCEPT_EULA: "1"
+      MSSQL_SA_PASSWORD: "Alec2026!SecureSQL"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    networks:
+      - logmon-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python3 -c \"import socket; socket.create_connection(('localhost',1433),5)\""
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+
+  mongo:
+    image: mongo:7
+    container_name: logmon_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - logmon-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--eval",
+          "db.adminCommand('ping')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
+  redis:
+    image: redis:7
+    container_name: logmon_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - logmon-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "ping"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
+
+  backend:
+    build:
+      context: ./backend
+
+    container_name: logmon_backend
+
+    environment:
+      WEB_CONCURRENCY: 1
+
+    ports:
+      - "8000:8000"
+
+    networks:
+      - logmon-network
+
+    depends_on:
+
+      mariadb:
+        condition: service_healthy
+
+      postgres:
+        condition: service_healthy
+
+      sqlserver:
+        condition: service_healthy
+
+      mongo:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:8000/health" #Esto falta ajustarlo a la ruta de healthcheck que tengas en tu backend
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
+
+volumes:
+
+  mariadb_data:
+  pg_data:
+  mssql_data:
+  mongo_data:
+  redis_data:
+  # meta_data:  # TODO: definir uso  y montarlo en backend cuando se sepa el path
+
+
+networks:
+
+  logmon-network:
+    driver: bridge
