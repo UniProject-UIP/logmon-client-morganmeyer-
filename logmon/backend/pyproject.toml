@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+
+name = "logmon-backend"
+
+version = "0.1.0"
+
+description = "Dynamic multi database log monitoring backend"
+
+requires-python = ">=3.12"
+
+
+dependencies = [
+
+    "fastapi",
+
+    "uvicorn[standard]",
+
+    "pydantic>=2",
+
+    "pydantic-settings",
+
+    "python-ulid",
+
+    "aiosqlite",
+
+    "psycopg[binary,pool]",
+
+    "asyncmy",
+
+    "pymssql",
+
+    "pymongo",
+
+    "redis",
+
+    "anyio"
+
+]
+
+
+[project.optional-dependencies]
+
+test = [
+
+    "pytest",
+
+    "httpx"
+
+]
